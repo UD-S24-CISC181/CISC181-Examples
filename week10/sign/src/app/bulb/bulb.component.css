@@ -1,0 +1,9 @@
+.bulb {
+    background-color: #434343;
+    position: absolute;
+    border-radius: 50%;
+}
+
+.on {
+    background-color: #ffd700;
+}
