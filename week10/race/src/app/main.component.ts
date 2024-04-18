@@ -3,11 +3,12 @@ import css from "./main.component.css";
 import {
     BindStyle,
     BindStyleToNumber,
-    BindStyleToNumberAppendPx,
     EzComponent,
+    EzDialog,
     Timer,
     WindowEvent,
 } from "@gsilber/webez";
+import { ObstacleComponent } from "./obstacle/obstacle.component";
 /**
  * 1. Let's start by adding the road to the main component
  * 2. Size the road reasonably
@@ -21,6 +22,8 @@ import {
  * 10. Add a keydown event to change speed
  * 11. Remove the automatic changing of lanes
  * 12. Randomly put some stuff in the road
+ * 13. Add a hit test to see if the car hit something
+ * 14. Add a dialog to show when the car hits something
  */
 
 /**
@@ -35,14 +38,41 @@ export class MainComponent extends EzComponent {
     @BindStyleToNumber("car", "left", "%")
     left: number = 100;
 
+    obstracles: ObstacleComponent[] = [];
     constructor() {
         super(html, css);
+        this.addObstacle();
+    }
+    addObstacle() {
+        let row = Math.random() > 0.5 ? 185 : 310;
+        let col = Math.random() * 90;
+        let obs = new ObstacleComponent(row, col);
+        this.obstracles.push(obs);
+        this.addComponent(obs, "road");
+    }
+    hitTest(): boolean {
+        for (let obs of this.obstracles) {
+            if (
+                (this.topLane && obs.y === 310) ||
+                (!this.topLane && obs.y === 185)
+            ) {
+                return false;
+            }
+            if (Math.abs(this.left - obs.x) < 1) {
+                return true;
+            }
+        }
+        return false;
     }
     @Timer(50)
     onTimerTick(cancel: () => void) {
         this.left -= this.speed;
         if (this.left < -20) {
             this.left = 100;
+        }
+        if (this.hitTest()) {
+            cancel();
+            EzDialog.popup(this, "You Crashed!", "Game Over");
         }
     }
     @WindowEvent("keydown")

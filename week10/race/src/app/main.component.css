@@ -3,6 +3,7 @@
     width: 100%;
     background-image: url(assets/road.jpg);
     background-size: contain;
+    position: relative;
 }
 .car {
     position: absolute;
