@@ -1,0 +1,13 @@
+.road {
+    height: 600px;
+    width: 100%;
+    background-image: url(assets/road.jpg);
+    background-size: contain;
+}
+.car {
+    position: absolute;
+    /*top: 165px;*/
+    top: 290px;
+    left: 50%;
+    height: 150px;
+}
