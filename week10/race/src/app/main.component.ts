@@ -9,6 +9,7 @@ import {
     WindowEvent,
 } from "@gsilber/webez";
 import { ObstacleComponent } from "./obstacle/obstacle.component";
+declare const window: Window;
 /**
  * 1. Let's start by adding the road to the main component
  * 2. Size the road reasonably
@@ -72,7 +73,9 @@ export class MainComponent extends EzComponent {
         }
         if (this.hitTest()) {
             cancel();
-            EzDialog.popup(this, "You Crashed!", "Game Over");
+            EzDialog.popup(this, "You Crashed!", "Game Over").subscribe(() => {
+                window.location.reload();
+            });
         }
     }
     @WindowEvent("keydown")
