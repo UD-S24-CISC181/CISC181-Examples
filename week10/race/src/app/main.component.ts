@@ -1,31 +1,14 @@
 import html from "./main.component.html";
 import css from "./main.component.css";
 import {
-    BindStyle,
     BindStyleToNumber,
+    BindValue,
     EzComponent,
     EzDialog,
     Timer,
     WindowEvent,
 } from "@gsilber/webez";
 import { ObstacleComponent } from "./obstacle/obstacle.component";
-declare const window: Window;
-/**
- * 1. Let's start by adding the road to the main component
- * 2. Size the road reasonably
- * 3. Add the car to the road
- * 4. Position and size the car (absolute, 0,0)
- * 5. Find the correct y position for each lane
- * 6. Bind the lane number to one of the two lanes
- * 7. Bind the left position to 100%.  This will be the right side of the road
- * 8. Add a timer method to move the car from 100 to -20 then change lanes and do it again.
- * 9. Add a keydown event to change lanes
- * 10. Add a keydown event to change speed
- * 11. Remove the automatic changing of lanes
- * 12. Randomly put some stuff in the road
- * 13. Add a hit test to see if the car hit something
- * 14. Add a dialog to show when the car hits something
- */
 
 /**
  * @description MainComponent is the main component of the app
@@ -33,61 +16,153 @@ declare const window: Window;
  *
  */
 export class MainComponent extends EzComponent {
-    speed: number = 1;
-    @BindStyle("car", "top", (val: boolean) => (val ? "165px" : "290px"))
-    topLane: boolean = true;
+    private running: boolean = true;
+    private speed: number = 1;
+    private topLane: number = 165;
+    private bottomLane: number = 290;
+    @BindValue("score", (value: number) => `Score: ${value.toString()} `)
+    private score: number = 0;
+    @BindValue("clock")
+    private clock: string = "00:00";
+    private startTime: Date = new Date();
+
+    @BindStyleToNumber("car", "top", "px")
+    private top: number = this.topLane;
+
     @BindStyleToNumber("car", "left", "%")
-    left: number = 100;
+    private left: number = 100;
 
     obstracles: ObstacleComponent[] = [];
     constructor() {
         super(html, css);
-        this.addObstacle();
+        this.resetGame();
     }
-    addObstacle() {
-        let row = Math.random() > 0.5 ? 185 : 310;
-        let col = Math.random() * 90;
-        let obs = new ObstacleComponent(row, col);
+
+    /**
+     * @description resetGame:Restart the game and reset position and score
+     * @returns {void}
+     */
+    resetGame() {
+        this.removeObstacles();
+        this.addObstacles();
+        this.left = 100;
+        this.speed = 1;
+        this.score = 0;
+        this.clock = "00:00";
+        this.top = this.topLane;
+        this.startTime = new Date();
+        this.running = true;
+    }
+    /**
+     * @description removeObstacles is a method that removes all obstacles from the road
+     * @returns {void}
+     */
+    removeObstacles() {
+        this.obstracles.forEach((obs) => {
+            this.removeComponent(obs);
+        });
+        this.obstracles = [];
+    }
+
+    /**
+     * @description addObstacles is a method that adds obstacles to the road
+     * @returns {void}
+     */
+    addObstacles(): void {
+        //add one in each lane but make sure they are at least 200 pixels appart
+        let col = Math.floor(Math.random() * 70 + 10);
+        let col2 = Math.floor(Math.random() * 70 + 10);
+        if (col > col2) {
+            if (col - col2 < 15) {
+                if (col < 80) col += 15;
+                else col2 -= 15;
+            }
+        } else if (col2 - col < 15) {
+            if (col2 < 80) col2 += 15;
+            else col -= 15;
+        }
+        let obs = new ObstacleComponent(185, col);
+        this.obstracles.push(obs);
+        this.addComponent(obs, "road");
+        obs = new ObstacleComponent(310, col2);
         this.obstracles.push(obs);
         this.addComponent(obs, "road");
     }
+
+    /**
+     * @description hitTest is a method that checks if the car has hit an obstacle
+     * @returns {boolean} - true if the car has hit an obstacle, false otherwise
+     */
     hitTest(): boolean {
-        for (let obs of this.obstracles) {
+        // the car is in a box that has a left margin of 50, a top margin of 30 within the car and has a height of 90 and a width of 180
+        // the obstacles are at this.obstracles[i].x and this.obstacles[i].y  The obstacles are 70x100
+        let estimatedCarWidthPercent = 10;
+        let estimatedBumperWidthPercent = 1;
+        let obsticalMargin = 20;
+        for (let i = 0; i < this.obstracles.length; i++) {
+            let obs = this.obstracles[i];
             if (
-                (this.topLane && obs.y === 310) ||
-                (!this.topLane && obs.y === 185)
+                this.left > obs.x - estimatedCarWidthPercent &&
+                this.left < obs.x + estimatedBumperWidthPercent &&
+                this.top == obs.y - obsticalMargin
             ) {
-                return false;
-            }
-            if (Math.abs(this.left - obs.x) < 1) {
                 return true;
             }
         }
+
         return false;
     }
-    @Timer(50)
-    onTimerTick(cancel: () => void) {
+
+    /**
+     * @description updateTime is a method that updates the clock based on actual time elapsed
+     * @returns {void}
+     */
+    updateTime() {
+        let now = new Date();
+        let diff = now.getTime() - this.startTime.getTime();
+        let minutes = Math.floor(diff / 60000);
+        let seconds = Math.floor((diff - minutes * 60000) / 1000);
+        this.clock = `${minutes < 10 ? "0" : ""}${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+    }
+    /**
+     * @description Timer method executes periodically (100ms)
+     * @param cancel {() => void} - a function that can be called to cancel the timer
+     * @returns {void}
+     */
+    @Timer(100)
+    onTimerTick(): void {
+        if (!this.running) return;
         this.left -= this.speed;
+        this.updateTime();
+        this.score = this.score + this.speed * this.speed;
         if (this.left < -20) {
+            this.removeObstacles();
+            this.addObstacles();
             this.left = 100;
         }
         if (this.hitTest()) {
-            cancel();
+            this.running = false;
             EzDialog.popup(this, "You Crashed!", "Game Over").subscribe(() => {
-                window.location.reload();
+                this.resetGame();
             });
         }
     }
+    /**
+     * @description onKeydown is a method that listens for keydown events
+     * For anytime you need a keypress this is how you do it.
+     * @param event {KeyboardEvent} - the event that was triggered
+     * @returns {void}
+     */
     @WindowEvent("keydown")
     onKeydown(event: KeyboardEvent) {
         if (event.key === "ArrowUp") {
-            this.topLane = true;
+            this.top = this.topLane;
         } else if (event.key === "ArrowDown") {
-            this.topLane = false;
+            this.top = this.bottomLane;
         } else if (event.key === "ArrowLeft") {
             if (this.speed < 10) this.speed += 1;
         } else if (event.key === "ArrowRight") {
-            if (this.speed > 1) this.speed -= 1;
+            if (this.speed > -10) this.speed -= 1;
         }
     }
 }
